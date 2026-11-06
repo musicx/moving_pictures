@@ -16,7 +16,7 @@ def paper():
 
 def cat_character(j):
     names = [("body", ""), ("tail_base", "body"), ("tail_tip", "tail_base"), ("neck", "body"), ("head", "neck")]
-    return {"id": "cat", "name_zh": "猫", "bbox": [200, 240, 800, 650],
+    return {"id": "cat", "name": "cat", "bbox": [200, 240, 800, 650],
             "joints": [{"name": n, "x": j[n][0], "y": j[n][1], "parent": p} for n, p in names]}
 
 
@@ -59,13 +59,13 @@ def test_rig_weights_follow_the_bones(paper):
 
 def test_sanitize_scales_clamps_and_repairs():
     raw = {
-        "title_zh": "t", "narration_zh": "n",
+        "title": "t", "narration": "n",
         "artwork_box": {"x0": 0, "y0": 0, "x1": 5, "y1": 5},  # too small -> whole image
-        "characters": [{"id": "a", "name_zh": "a", "kind": "quadruped", "bbox": {"x0": 10, "y0": 10, "x1": 60, "y1": 60},
+        "characters": [{"id": "a", "name": "a", "kind": "quadruped", "bbox": {"x0": 10, "y0": 10, "x1": 60, "y1": 60},
                         "joints": [{"name": "body", "x": 30, "y": 30, "parent": ""},
                                    {"name": "tail", "x": 50, "y": 40, "parent": "body"},
                                    {"name": "paw", "x": 20, "y": 55, "parent": "missing"}]}],
-        "motions": [{"label_zh": "摇", "emoji": "x", "duration_s": 9,
+        "motions": [{"label": "wag", "emoji": "x", "video_prompt": "v", "duration_s": 9,
                      "tracks": [{"character_id": "a", "hop": 1, "float": -0.5, "sway_deg": 3, "breathe": 0, "cycles": 0,
                                  "bones": [{"joint": "tail", "amp_deg": 90, "cycles": 7, "phase": 1.25},
                                            {"joint": "body", "amp_deg": 10, "cycles": 1, "phase": 0},

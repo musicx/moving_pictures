@@ -99,7 +99,7 @@ def build_rig(image: np.ndarray, character: dict) -> tuple[dict, np.ndarray]:
     """Returns the rig for the browser and the character's mask (to paint over in the background)."""
     mask = character_mask(image, character["bbox"], character["joints"])
     if not mask.any():
-        raise ValueError(f"角色 {character['name_zh']} 在画里找不到")
+        raise ValueError(f"character {character['name']} not found in the picture")
     joints = _snap(character["joints"], mask)
 
     ys, xs = np.nonzero(mask)

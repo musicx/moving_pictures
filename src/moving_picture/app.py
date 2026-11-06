@@ -20,6 +20,16 @@ WEB = ROOT / "web"
 KEEP_SCANS = 20
 
 app = FastAPI()
+
+
+@app.middleware("http")
+async def no_stale_pages(request, call_next):
+    # Without this the browser may keep running an old main.js after the app is updated.
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 scans: OrderedDict[str, np.ndarray] = OrderedDict()  # single-user local app: keep photos in memory
 
 
@@ -32,7 +42,7 @@ def data_url(img: np.ndarray, fmt: str) -> str:
 
 def get_scan(scan_id: str) -> np.ndarray:
     if scan_id not in scans:
-        raise HTTPException(404, "这张画已经过期了，请重新上传")
+        raise HTTPException(404, "This picture has expired, please add it again")
     return scans[scan_id]
 
 
@@ -41,7 +51,7 @@ async def scan(file: UploadFile = File(...)):
     try:
         image = straighten(load_photo(await file.read()))
     except Exception:
-        raise HTTPException(422, "这张图片打不开，换一张试试")
+        raise HTTPException(422, "Couldn't open this image, try another one")
     scan_id = uuid.uuid4().hex
     scans[scan_id] = image
     while len(scans) > KEEP_SCANS:
@@ -60,11 +70,11 @@ def analyze(ref: ScanRef):
     try:
         return ask_claude(image)
     except anthropic.AuthenticationError:
-        raise HTTPException(500, "Claude API key 无效或没有设置（.env 里的 CLAUDE_API_KEY）")
+        raise HTTPException(500, "Claude API key is missing or invalid (CLAUDE_API_KEY in .env)")
     except anthropic.APIConnectionError:
-        raise HTTPException(502, "连不上 Claude，请检查网络")
+        raise HTTPException(502, "Can't reach Claude, check the internet connection")
     except anthropic.APIStatusError as e:
-        raise HTTPException(502, f"Claude 出错了：{e.message}")
+        raise HTTPException(502, f"Claude error: {e.message}")
     except RuntimeError as e:
         raise HTTPException(422, str(e))
 
@@ -78,7 +88,7 @@ class Joint(BaseModel):
 
 class Character(BaseModel):
     id: str
-    name_zh: str
+    name: str
     bbox: list[int]
     joints: list[Joint]
 
@@ -101,7 +111,7 @@ def rig(req: RigRequest):
         rigs.append(r)
         masks.append(m)
     if not rigs:
-        raise HTTPException(422, "没能把角色从画里分出来")
+        raise HTTPException(422, "Couldn't cut the characters out of the picture")
     return {"background": data_url(fill_behind(image, masks), ".jpg"), "characters": rigs}
 
 

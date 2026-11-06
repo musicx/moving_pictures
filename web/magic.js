@@ -60,7 +60,7 @@ export class Sparkles {
       const e = {
         kind: "trace", rate: 1.2,
         emit: (now) => {
-          const k = (now - start) / ms;
+          const k = Math.max(0, now - start) / ms; // rAF time can be slightly earlier than start
           if (k >= 1) {
             this.emitters = this.emitters.filter((x) => x !== e);
             done();
@@ -109,14 +109,18 @@ export class Sparkles {
   }
 }
 
+// Natural-sounding voices first (Edge/Windows "Natural", macOS Samantha, Chrome's Google voice).
+const VOICE_PREFERENCE = [/natural/i, /samantha/i, /google us english/i, /aria|jenny/i];
+
 export function speak(text) {
   if (!("speechSynthesis" in window) || !text) return;
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = "zh-CN";
-  const voice = speechSynthesis.getVoices().find((v) => v.lang.startsWith("zh"));
+  u.lang = "en-US";
+  const english = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
+  const voice = VOICE_PREFERENCE.map((re) => english.find((v) => re.test(v.name))).find(Boolean) ?? english[0];
   if (voice) u.voice = voice;
   u.rate = 0.95;
-  u.pitch = 1.25;
+  u.pitch = 1.1;
   speechSynthesis.cancel();
   speechSynthesis.speak(u);
 }

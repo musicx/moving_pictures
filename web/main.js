@@ -8,7 +8,7 @@ starrySky($("sky"));
 const sparkles = new Sparkles($("sparkles"));
 const renderer = new Renderer($("gl"));
 
-const WAIT_LINES = ["✨ 魔法正在认识你的画…", "🔍 看看都有谁…", "🎨 这些颜色真漂亮…", "🦶 数一数有几只小脚…", "💫 找一找谁最想动起来…"];
+const WAIT_LINES = ["✨ The magic is meeting your picture…", "🔍 Who's in here?", "🎨 What lovely colors…", "🦶 Counting little feet…", "💫 Who wants to move the most?"];
 
 let state = null; // { scan, analysis, view, scene, motion, t0, aliveAt, editing }
 
@@ -29,7 +29,7 @@ async function api(path, body) {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || "魔法出了点小问题");
+  if (!res.ok) throw new Error(data.detail || "The magic hiccuped");
   return data;
 }
 
@@ -59,10 +59,11 @@ async function start(file) {
   if (!file) return;
   stopAnimation();
   $("controls").hidden = true;
+  $("grok-help").hidden = true;
   $("gl").classList.remove("on");
   $("photo").style.opacity = 1;
   show("show");
-  say("🪄 魔法正在打开你的画…");
+  say("🪄 Opening your picture…");
   try {
     const fd = new FormData();
     fd.append("file", file);
@@ -91,8 +92,8 @@ async function start(file) {
     const rigging = api("/api/rig", { id: scan.id, characters: analysis.characters });
     layout(state.view, true);
     $("frame").classList.add("glowing");
-    say(`我看到了……${analysis.title_zh}！`, { pop: true });
-    speak(analysis.narration_zh);
+    say(`I see… ${analysis.title}!`, { pop: true });
+    speak(analysis.narration);
     await sleep(1200);
     sparkles.resize();
 
@@ -107,7 +108,7 @@ async function start(file) {
     await sleep(300);
     $("photo").style.opacity = 0;
     $("frame").classList.remove("glowing");
-    say(analysis.narration_zh, { pop: true });
+    say(analysis.narration, { pop: true });
     showMotions();
     play(analysis.motions[0]);
   } catch (e) {
@@ -115,7 +116,7 @@ async function start(file) {
     stopAnimation();
     say(`😢 ${e.message}`, { error: true });
     $("controls").hidden = false;
-    for (const id of ["motions", "btn-gif", "btn-edit"]) $(id).hidden = true;
+    for (const id of ["motions", "btn-gif", "btn-grok", "btn-edit"]) $(id).hidden = true;
   }
 }
 
@@ -135,13 +136,13 @@ function showMotions() {
   state.analysis.motions.forEach((m, i) => {
     const b = document.createElement("button");
     b.className = "magic-btn";
-    b.textContent = `${m.emoji} ${m.label_zh}`;
+    b.textContent = `${m.emoji} ${m.label}`;
     b.onclick = () => play(m);
     b.dataset.i = i;
     box.appendChild(b);
   });
   $("controls").hidden = false;
-  for (const id of ["motions", "btn-gif", "btn-edit"]) $(id).hidden = false;
+  for (const id of ["motions", "btn-gif", "btn-grok", "btn-edit"]) $(id).hidden = false;
 }
 
 let raf = 0;
@@ -152,6 +153,7 @@ function stopAnimation() {
 
 function play(motion) {
   state.motion = motion;
+  $("grok-prompt").value = motion.video_prompt;
   state.t0 = state.aliveAt = performance.now();
   [...$("motions").children].forEach((b) => b.classList.toggle("selected", state.analysis.motions[b.dataset.i] === motion));
   stopAnimation();
@@ -171,21 +173,44 @@ function play(motion) {
 async function saveGif() {
   const btn = $("btn-gif");
   btn.disabled = true;
-  say("🖼️ 正在把魔法装进相框…");
+  say("🖼️ Putting the magic in a frame…");
   try {
     const blob = await exportGif(state.scene, state.motion);
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${state.analysis.title_zh}-${state.motion.label_zh}.gif`;
+    a.download = `${state.analysis.title}-${state.motion.label}.gif`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-    say("🎉 保存好啦！", { pop: true });
+    say("🎉 Saved!", { pop: true });
   } catch (e) {
     console.error(e);
-    say("😢 保存失败了，再试一次吧", { error: true });
+    say("😢 Saving failed, please try again", { error: true });
   } finally {
     btn.disabled = false;
   }
+}
+
+// Grok Imagine (subscription, used by hand): save the artwork as the first frame and copy a prompt.
+async function grokVideo() {
+  const prompt = state.motion.video_prompt;
+  $("grok-prompt").value = prompt;
+  $("grok-help").hidden = false;
+  const copied = await navigator.clipboard.writeText(prompt).then(() => true, () => false);
+  const [x0, y0, x1, y1] = state.view, img = $("photo"), c = document.createElement("canvas");
+  c.width = x1 - x0;
+  c.height = y1 - y0;
+  const src = new Image();
+  src.src = img.src;
+  await src.decode();
+  c.getContext("2d").drawImage(src, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
+  const blob = await new Promise((ok) => c.toBlob(ok, "image/jpeg", 0.95));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${state.analysis.title}.jpg`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  say(copied ? "🎬 Picture saved and prompt copied, now over to Grok!" : "🎬 Picture saved, copy the prompt below", { pop: true });
+  $("grok-help").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 // --- Joint editing (for grown-ups): drag joints, then rebuild the rig ---
@@ -256,22 +281,22 @@ async function toggleEdit() {
   const btn = $("btn-edit");
   if (!state.editing) {
     state.editing = true;
-    btn.textContent = "✅ 调好了";
+    btn.textContent = "✅ Done";
     $("joints-layer").classList.add("editing");
-    say("拖动圆点，把关节放到身体里正确的位置");
+    say("Drag the dots onto the right spots inside the body");
     drawJoints();
     return;
   }
   btn.disabled = true;
-  say("🪄 重新施魔法…");
+  say("🪄 Casting the spell again…");
   try {
     await loadRig(await api("/api/rig", { id: state.scan.id, characters: state.analysis.characters }));
     state.editing = false;
-    btn.textContent = "🔧 调骨骼";
+    btn.textContent = "🔧 Fix joints";
     $("joints-layer").classList.remove("editing");
     drawJoints();
     play(state.motion);
-    say(state.analysis.narration_zh);
+    say(state.analysis.narration);
   } catch (e) {
     say(`😢 ${e.message}`, { error: true });
   } finally {
@@ -284,14 +309,20 @@ async function toggleEdit() {
 $("btn-file").onclick = () => $("file").click();
 $("file").onchange = (e) => start(e.target.files[0]);
 $("btn-gif").onclick = saveGif;
+$("btn-grok").onclick = grokVideo;
+$("btn-copy-prompt").onclick = () => {
+  navigator.clipboard.writeText($("grok-prompt").value);
+  say("📋 Prompt copied!", { pop: true });
+};
 $("btn-edit").onclick = toggleEdit;
 $("btn-again").onclick = () => {
   stopAnimation();
   if (state) state.editing = false;
   $("joints-layer").classList.remove("editing");
-  $("btn-edit").textContent = "🔧 调骨骼";
+  $("btn-edit").textContent = "🔧 Fix joints";
   drawJoints();
   $("controls").hidden = true;
+  $("grok-help").hidden = true;
   $("file").value = "";
   say("");
   show("home");
@@ -314,7 +345,7 @@ $("btn-camera").onclick = async () => {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1440 } } });
   } catch {
-    say("😢 打不开摄像头，可以用「选照片」", { error: true });
+    say("😢 Can't open the camera, use \"Choose a photo\" instead", { error: true });
     return;
   }
   $("video").srcObject = stream;

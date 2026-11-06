@@ -11,28 +11,29 @@ import numpy as np
 MODEL = "claude-opus-5-5"
 SEND_SIDE = 1024  # long side of the image sent to Claude; coordinates come back in this space
 
-PROMPT = """这是一张小朋友美术作品的照片（画、拼贴、手工都有可能；照片里可能还拍到了桌子、手、颜料等）。图片尺寸 {w}x{h} 像素，坐标原点在左上角，x 向右、y 向下。
-我们要让作品里的角色动起来，做成 {min_d}-{max_d} 秒、首尾无缝循环的 GIF。动画方式是：把角色从背景里抠出来，在角色内部放 2D 骨骼，绕关节旋转来变形原作（不重画、不加东西），角色原来位置的背景会被自动补上。
+PROMPT = """This is a photo of a child's artwork (drawing, painting, collage or craft; the photo may also show the table, hands, paints, etc.). The image is {w}x{h} pixels, origin at the top-left, x to the right, y down.
+We will bring the characters in the artwork to life as a {min_d}-{max_d} second GIF that loops seamlessly. Each character is cut out of the background, a 2D skeleton is placed inside it, and the original artwork is deformed by rotating around the joints (nothing is redrawn or added). The background behind the character is filled in automatically.
 
-请完成：
-0. artwork_box：作品本身的范围（纸/画板/手工作品的边缘），排除桌面、手、工具等杂物。
-1. 找出作品里最适合动起来的角色（人和动物优先；如果没有，选一个最有生命感的东西，比如花、太阳、车）。最多 {max_chars} 个，按主次排序。地面线、背景装饰不要选。
-2. 给每个角色一个紧贴它的 bbox（包住整个角色，包括翅膀尖、尾巴尖、头饰，但尽量不包进别的东西），以及一棵关节树：
-   - 根关节放在躯干中心（parent 为空字符串）。
-   - 其他关节放在**自然的转动点**：头颈连接处、肩、肘、手、髋、膝、脚、尾巴根部、尾巴中段和尖端、翅膀根部和尖端。
-   - 每个关节、以及相邻关节之间的连线，都必须落在角色身体内部（不能落到背景上），这些位置会被当作"一定属于角色"来抠图。孩子画的比例可能很怪，按作品上实际的样子放，不要按真实解剖。
-   - 一根"骨头"= 从 parent 关节到这个关节的线段。想让某部分单独转，它就需要从附着点出发的一根骨头，例如 body→tail_base→tail_tip，转 tail_tip 这根骨头就是绕 tail_base 摆尾巴。
-   - 关节数量 4-14 个，只放会用到的。
-3. 给出 3 个不同风格的动作方案（例如：摇尾巴、开心跳跳、挥手打招呼），每个方案对所有角色给出参数。动作要符合这个角色：狗摇尾巴、鸟扇翅膀、鱼摆尾、人挥手或跳舞。优先让最有表现力的部位动。
-   - bones 里的 joint 指"以该关节为终点的那根骨头"，它绕其 parent 关节转动，子孙骨头跟着一起转。
-   - amp_deg：摆幅（度）。四肢不超过 30，尾巴/翅膀不超过 40，头不超过 12。太大会把画撕坏。
-   - cycles：在一个循环里摆几次，必须是正整数（1-4），这样首尾才能衔接。
-   - phase：0-1，用来错开左右腿、前后腿等。
-   - 全身动作：hop（跳的高度，占角色高度的比例，0-0.2）、float（上下漂浮幅度，0-0.1）、sway_deg（整体左右摇摆角度，0-8）、breathe（呼吸般的伸缩，0-0.08），全身动作的 cycles 也必须是正整数。不需要的设为 0。
-   - 角色整体移动（hop、float）会露出它身后被自动修补的背景，背景越花哨越容易看出来。背景复杂时优先用局部摆动，hop 不超过 0.06。
-   - duration_s：循环时长 {min_d}-{max_d} 秒。
-   - label_zh 用小朋友能懂的 2-6 个字，emoji 一个。
-4. title_zh：给这幅画起一个可爱的名字。narration_zh：用温柔、惊喜的语气对小朋友说一两句话，说出你看到了什么（会被念出来，40 字以内）。
+Please do the following:
+0. artwork_box: the extent of the artwork itself (edges of the paper, board or craft), excluding the table, hands, tools and other clutter.
+1. Find the characters best suited to move (people and animals first; if there are none, pick the most lively thing, such as a flower, the sun or a car). At most {max_chars}, most important first. Do not pick ground lines or background decoration.
+2. For each character give a tight bbox (the whole character including wing tips, tail tips and headwear, but as little else as possible), and a joint tree:
+   - The root joint sits at the center of the torso (parent is the empty string).
+   - Other joints sit at **natural pivot points**: base of the neck, shoulders, elbows, hands, hips, knees, feet, base/middle/tip of the tail, base and tip of wings.
+   - Every joint, and the line between each joint and its parent, must lie inside the character's body (never on the background); these are used as "definitely the character" when cutting it out. Children draw odd proportions: place joints where the parts actually are in the artwork, not where anatomy says.
+   - A "bone" is the segment from a parent joint to a joint. For a part to move on its own it needs a bone starting at its attachment point, e.g. body -> tail_base -> tail_tip: rotating the tail_tip bone swings the tail around tail_base.
+   - Use 4-14 joints, only the ones the motions need.
+3. Give 3 motions with distinct moods (e.g. wag the tail, happy hops, wave hello); each motion gives parameters for every character. Motions must suit the character: a dog wags its tail, a bird flaps its wings, a fish swishes its tail, a person waves or dances. Prefer moving the most expressive part.
+   - joint in bones means "the bone ending at this joint"; it rotates around its parent joint and its descendants follow.
+   - amp_deg: swing amplitude in degrees. Limbs at most 30, tails/wings at most 40, heads at most 12. Larger values tear the artwork.
+   - cycles: swings per loop, a positive integer (1-4), so the loop joins up seamlessly.
+   - phase: 0-1, to offset left/right or front/back legs.
+   - Whole-body motion: hop (jump height as a fraction of the character's height, 0-0.2), float (up-and-down drift, 0-0.1), sway_deg (whole-body side-to-side rock, 0-8), breathe (breathing stretch, 0-0.08); the whole-body cycles must also be a positive integer. Set unused ones to 0.
+   - Moving the whole character (hop, float) reveals the filled-in background behind it, which is more visible on busy backgrounds. On busy backgrounds prefer moving parts, and keep hop at most 0.06.
+   - duration_s: loop length, {min_d}-{max_d} seconds.
+   - label: 1-3 simple words a young child understands, without emoji; emoji: exactly one emoji for the motion.
+   - video_prompt: a prompt for an image-to-video model (Grok Imagine) whose first frame is this photo cropped to artwork_box. Describe about 5 seconds of this motion in simple, vivid words: who moves and how, while everything else stays still. Ask it to keep the exact look of the child's artwork (same colors, paper/collage/paint texture, hand-drawn lines), a static camera, no new objects or characters, and no text. Under 60 words.
+4. title: a cute name for the artwork. narration: one or two warm, delighted sentences to the child saying what you see (it will be read aloud; under 25 words). Write all text in English.
 """
 
 
@@ -49,12 +50,12 @@ def _obj(props: dict) -> dict:
 
 
 SCHEMA = _obj({
-    "title_zh": {"type": "string"},
+    "title": {"type": "string"},
     "artwork_box": _obj({"x0": _int(), "y0": _int(), "x1": _int(), "y1": _int()}),
-    "narration_zh": {"type": "string"},
+    "narration": {"type": "string"},
     "characters": {"type": "array", "items": _obj({
         "id": {"type": "string"},
-        "name_zh": {"type": "string"},
+        "name": {"type": "string"},
         "kind": {"type": "string", "enum": ["human", "quadruped", "bird", "fish", "insect", "other"]},
         "bbox": _obj({"x0": _int(), "y0": _int(), "x1": _int(), "y1": _int()}),
         "joints": {"type": "array", "items": _obj({
@@ -62,7 +63,8 @@ SCHEMA = _obj({
         })},
     })},
     "motions": {"type": "array", "items": _obj({
-        "label_zh": {"type": "string"},
+        "label": {"type": "string"},
+        "video_prompt": {"type": "string"},
         "emoji": {"type": "string"},
         "duration_s": _num(),
         "tracks": {"type": "array", "items": _obj({
@@ -106,9 +108,9 @@ def ask_claude(image: np.ndarray) -> dict:
         ]}],
     )
     if response.stop_reason == "refusal":
-        raise RuntimeError("Claude 没有接受这张图片")
+        raise RuntimeError("Claude declined this picture")
     if response.stop_reason == "max_tokens":
-        raise RuntimeError("Claude 的回答被截断了")
+        raise RuntimeError("Claude's answer was cut off")
     text = next(b.text for b in response.content if b.type == "text")
     return sanitize(json.loads(text), 1 / scale, w, h)
 
@@ -136,7 +138,7 @@ def sanitize(raw: dict, k: float, w: int, h: int) -> dict:
         joints = _as_tree(list(joints.values()))
         if not joints:
             continue
-        chars.append({"id": c["id"], "name_zh": c["name_zh"], "kind": c["kind"], "bbox": bbox, "joints": joints})
+        chars.append({"id": c["id"], "name": c["name"], "kind": c["kind"], "bbox": bbox, "joints": joints})
 
     by_id = {c["id"]: {j["name"] for j in c["joints"] if j["parent"]} for c in chars}
     motions = []
@@ -156,11 +158,11 @@ def sanitize(raw: dict, k: float, w: int, h: int) -> dict:
             ]
             tracks.append(track)
         if tracks:
-            motions.append({"label_zh": m["label_zh"], "emoji": m["emoji"],
+            motions.append({"label": m["label"], "emoji": m["emoji"], "video_prompt": m["video_prompt"],
                             "duration_s": _clamp(m["duration_s"], MIN_D, MAX_D), "tracks": tracks})
     if not chars or not motions:
-        raise RuntimeError("没能从画里找到可以动起来的角色")
-    return {"title_zh": raw["title_zh"], "artwork_box": artwork, "narration_zh": raw["narration_zh"], "characters": chars, "motions": motions}
+        raise RuntimeError("Couldn't find anyone in the picture who can move")
+    return {"title": raw["title"], "artwork_box": artwork, "narration": raw["narration"], "characters": chars, "motions": motions}
 
 
 def _as_tree(joints: list[dict]) -> list[dict]:
