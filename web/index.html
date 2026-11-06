@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>魔法画框</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="sky"></div>
+
+  <header>
+    <h1>✨ 魔法画框 ✨</h1>
+    <p id="subtitle">把你的画放进来，看它活过来！</p>
+  </header>
+
+  <main>
+    <div id="frame" class="frame">
+      <div id="home" class="stage">
+        <div class="drop-hint">🎨<br>把画的照片拖到这里</div>
+        <div class="buttons">
+          <button id="btn-camera" class="magic-btn">📷 拍照</button>
+          <button id="btn-file" class="magic-btn">🖼️ 选照片</button>
+        </div>
+        <input id="file" type="file" accept="image/*,.heic,.heif" hidden>
+      </div>
+
+      <div id="camera" class="stage" hidden>
+        <video id="video" autoplay playsinline muted></video>
+        <div class="buttons">
+          <button id="btn-snap" class="magic-btn big">📸 咔嚓！</button>
+          <button id="btn-cancel-camera" class="magic-btn small">返回</button>
+        </div>
+      </div>
+
+      <div id="show" class="stage" hidden>
+        <div id="canvas-box">
+          <img id="photo" alt="">
+          <canvas id="gl"></canvas>
+          <canvas id="joints-layer"></canvas>
+          <canvas id="sparkles"></canvas>
+          <div id="scanbar"></div>
+        </div>
+      </div>
+    </div>
+
+    <p id="message"></p>
+
+    <div id="controls" hidden>
+      <div id="motions" class="buttons"></div>
+      <div class="buttons">
+        <button id="btn-gif" class="magic-btn">💾 把魔法带回家</button>
+        <button id="btn-again" class="magic-btn small">🔄 再来一张</button>
+        <button id="btn-edit" class="magic-btn small" title="给大人用：拖动关节点修正骨骼">🔧 调骨骼</button>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

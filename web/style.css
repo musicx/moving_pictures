@@ -1,0 +1,89 @@
+:root {
+  --ink: #fff8ff;
+  --glow: #ffd86b;
+  --pink: #ff8fd8;
+  --violet: #8f7bff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: "ZCOOL KuaiLe", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  background: radial-gradient(ellipse at 50% 120%, #4b2a8a 0%, #1d1446 55%, #0b0920 100%);
+  overflow-x: hidden;
+  text-align: center;
+}
+
+#sky { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.star {
+  position: absolute; border-radius: 50%; background: #fff;
+  animation: twinkle var(--d) ease-in-out infinite; animation-delay: var(--delay);
+}
+@keyframes twinkle { 0%, 100% { opacity: .15; transform: scale(.6); } 50% { opacity: 1; transform: scale(1.2); } }
+
+header, main { position: relative; z-index: 1; }
+h1 {
+  margin: 28px 0 4px; font-size: clamp(32px, 5vw, 56px); font-weight: normal; letter-spacing: 4px;
+  background: linear-gradient(90deg, var(--glow), var(--pink), var(--violet), var(--glow));
+  background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: shimmer 6s linear infinite;
+}
+@keyframes shimmer { to { background-position: 300% 0; } }
+#subtitle { margin: 0 0 20px; font-size: 20px; opacity: .85; }
+
+.frame {
+  position: relative; margin: 0 auto; width: min(900px, 92vw); min-height: 420px;
+  padding: 18px; border-radius: 28px;
+  background: rgba(255, 255, 255, .06);
+  border: 3px solid rgba(255, 216, 107, .5);
+  box-shadow: 0 0 40px rgba(143, 123, 255, .45), inset 0 0 30px rgba(255, 143, 216, .15);
+  display: flex; align-items: center; justify-content: center;
+  transition: box-shadow .6s;
+}
+.frame.dragover, .frame.glowing { box-shadow: 0 0 70px rgba(255, 216, 107, .9), inset 0 0 40px rgba(255, 216, 107, .3); }
+
+.stage { width: 100%; }
+.drop-hint { font-size: 26px; line-height: 1.8; opacity: .8; margin: 30px 0; }
+.drop-hint::first-line { font-size: 64px; }
+
+.buttons { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin: 14px 0; }
+.magic-btn {
+  font-family: inherit; font-size: 22px; color: #2a1650; cursor: pointer;
+  padding: 14px 28px; border: none; border-radius: 999px;
+  background: linear-gradient(135deg, var(--glow), var(--pink));
+  box-shadow: 0 6px 0 #b0569a, 0 0 22px rgba(255, 143, 216, .6);
+  transition: transform .12s, box-shadow .12s;
+}
+.magic-btn:hover { transform: translateY(-2px) scale(1.04); }
+.magic-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b0569a; }
+.magic-btn.small { font-size: 16px; padding: 10px 18px; background: linear-gradient(135deg, #e7e2ff, #c7b8ff); box-shadow: 0 4px 0 #7a68c9; }
+.magic-btn.big { font-size: 28px; }
+.magic-btn.selected { background: linear-gradient(135deg, #fff, var(--glow)); outline: 4px solid #fff; }
+.magic-btn:disabled { opacity: .5; cursor: wait; }
+
+video { max-width: 100%; max-height: 60vh; border-radius: 18px; }
+
+#canvas-box { position: relative; margin: 0 auto; overflow: hidden; border-radius: 14px; }
+#canvas-box > * { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 14px; }
+#photo { inset: auto; max-width: none; border-radius: 0; }
+#gl { opacity: 0; transition: opacity .8s; background: #fff; }
+#gl.on { opacity: 1; }
+#joints-layer { pointer-events: none; }
+#joints-layer.editing { pointer-events: auto; cursor: grab; }
+#sparkles { pointer-events: none; }
+
+#scanbar {
+  height: 18% !important; inset: auto 0 auto 0 !important; top: -18%;
+  background: linear-gradient(180deg, transparent, rgba(255, 236, 160, .75), transparent);
+  filter: blur(2px); display: none;
+}
+#scanbar.on { display: block; animation: scan 1.6s ease-in-out infinite alternate; }
+@keyframes scan { from { top: -10%; } to { top: 92%; } }
+
+#message { min-height: 1.6em; font-size: 26px; margin: 18px 12px 6px; text-shadow: 0 0 12px rgba(255, 216, 107, .8); }
+#message.pop { animation: pop .7s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+#message.error { color: #ffc2c2; }

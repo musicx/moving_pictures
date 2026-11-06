@@ -1,0 +1,34 @@
+[project]
+name = "moving-picture"
+version = "0.1.0"
+description = "Photograph a child's artwork and make its characters move as a looping GIF"
+authors = [
+    { name = "mUSicX", email = "musicxing@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=2.6.0",
+    "fastapi>=0.162.0",
+    "numpy>=2.5.4",
+    "opencv-python-headless>=5.0.0.93",
+    "pillow>=13.0.0",
+    "pillow-heif>=1.8.1",
+    "python-multipart>=0.0.33",
+    "scikit-image>=0.26.0",
+    "scipy>=1.18.1",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+moving-picture = "moving_picture:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+[tool.pytest.ini_options]
+pythonpath = ["tests"]
